@@ -4,6 +4,7 @@ import api from '../api';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { Building2, CalendarDays, UserPlus, Check } from 'lucide-react';
+import { whenText } from '../utils/dates';
 
 const OrganizerDetailPage = () => {
     const { orgId } = useParams();
@@ -162,7 +163,7 @@ const renderEventCard = (event) => (
 
         <div className="flex items-center gap-2 text-sm text-muted mt-2">
             <CalendarDays size={16} />
-            {new Date(event.startDate).toLocaleDateString()}
+            {whenText(event)}
         </div>
 
         <Link to={`/events/${event._id}`} className="btn btn-outline text-center mt-4">

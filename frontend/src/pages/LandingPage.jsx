@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import api from '../api';
 import { CalendarDays, Users, Search, Filter, TrendingUp } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { whenText } from '../utils/dates';
 
 const LandingPage = () => {
     const { user, isAuthenticated } = useAuth();
@@ -213,7 +214,7 @@ const EventCard = ({ event }) => (
             )}
             <div className="flex items-center gap-2">
                 <CalendarDays size={16} />
-                {new Date(event.startDate).toLocaleDateString()}
+                {whenText(event)}
             </div>
             {event.registrationLimit && (
                 <div className="flex items-center gap-2">

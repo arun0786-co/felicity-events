@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import api from '../api';
 import toast from 'react-hot-toast';
 import { Calendar, CheckCircle2, QrCode } from 'lucide-react';
+import { whenText } from '../utils/dates';
 
 const ParticipantDashboard = () => {
     const [registrations, setRegistrations] = useState([]);
@@ -99,7 +100,7 @@ const ParticipantDashboard = () => {
 
                                 <div className="flex items-center gap-2 text-muted mb-2">
                                     <Calendar size={16} />
-                                    {new Date(reg.event?.startDate).toLocaleDateString()}
+                                    {whenText(reg.event)}
                                 </div>
 
                                 {reg.event?.type === 'merchandise' && (

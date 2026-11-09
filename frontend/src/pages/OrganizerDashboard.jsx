@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import api from '../api';
 import toast from 'react-hot-toast';
 import { PlusCircle, QrCode, ClipboardList } from 'lucide-react';
+import { whenText } from '../utils/dates';
 
 const OrganizerDashboard = () => {
     const [events, setEvents] = useState([]);
@@ -61,7 +62,7 @@ const OrganizerDashboard = () => {
                                     </span>
                                 </div>
                                 <div className="text-muted" style={{ fontSize: '0.875rem' }}>
-                                    {new Date(event.startDate).toLocaleDateString()} &bull; {event.type}
+                                    {whenText(event)} &bull; {event.type}
                                     {event.type === 'merchandise' && ` • Stock: ${event.stockQuantity}`}
                                 </div>
                                 {event.status === 'completed' && event.attendanceCount !== undefined && (

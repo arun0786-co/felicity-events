@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { Calendar, MapPin, Tag, Users, CheckCircle } from 'lucide-react';
 import DiscussionForum from '../components/DiscussionForum';
 import FeedbackForm from '../components/FeedbackForm';
+import { whenText } from '../utils/dates';
 
 const EventDetailPage = () => {
   const { eventId } = useParams();
@@ -105,7 +106,7 @@ const EventDetailPage = () => {
           <div className="flex items-center gap-2 text-gray-800">
             <Calendar size={18} />
             <span className="font-medium">Date:</span>
-            <span>{new Date(event.startDate).toLocaleDateString()} - {new Date(event.endDate).toLocaleDateString()}</span>
+            <span>{whenText(event)}</span>
           </div>
           {event.registrationLimit && (
             <div className="flex items-center gap-2 text-gray-800">

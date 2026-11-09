@@ -10,6 +10,7 @@ const registrationSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Event",
     },
+    eventType: { type: String, enum: ["normal", "merchandise"] },
     ticketId: { type: String, required: true, unique: true },
     status: {
       type: String,
@@ -42,6 +43,17 @@ const registrationSchema = new mongoose.Schema(
     ],
   },
   { timestamps: true }
+);
+
+// one active registration per user for a normal event; merchandise allows
+// several orders per user (capped by purchaseLimitPerUser)
+registrationSchema.index(
+  { user: 1, event: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { status: "registered", eventType: "normal" },
+    name: "one_active_seat_per_user",
+  }
 );
 
 export default mongoose.model("Registration", registrationSchema);

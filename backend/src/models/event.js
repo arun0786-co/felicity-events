@@ -15,6 +15,9 @@ const eventSchema = new mongoose.Schema(
     startDate: { type: Date },
     endDate: { type: Date },
     registrationLimit: { type: Number },
+    // seats taken in a normal event. registration reserves a seat with one
+    // conditional $inc, so concurrent requests cannot pass the limit
+    registeredCount: { type: Number, default: 0 },
     registrationFee: { type: Number },
     organizer: {
       type: mongoose.Schema.Types.ObjectId,

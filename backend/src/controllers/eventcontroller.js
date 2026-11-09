@@ -19,6 +19,68 @@ const getOptionalAuthUser = (req) => {
 
 // POST /api/events
 // Protected: verifyToken, authorizeRoles("organizer")
+// Seats and stock are taken with one conditional update each, so the
+// check ("is there room?") and the change ("take one") happen together
+// inside MongoDB. Reading the event, checking it in JavaScript and saving
+// it back lets concurrent requests all pass the check.
+
+// Takes one seat (normal event) or one item (merchandise). Returns false
+// when the event is full or the item is sold out.
+const reserveSlot = async (event, variant) => {
+  if (event.type === "normal") {
+    const filter = { _id: event._id };
+    if (event.registrationLimit) {
+      filter.$expr = { $lt: [{ $ifNull: ["$registeredCount", 0] }, "$registrationLimit"] };
+    }
+    const r = await Event.updateOne(filter, { $inc: { registeredCount: 1 } });
+    return r.modifiedCount === 1;
+  }
+  const filter = { _id: event._id, stockQuantity: { $gt: 0 } };
+  const inc = { stockQuantity: -1 };
+  if (variant) {
+    filter.merchandiseVariants = { $elemMatch: { name: variant, stock: { $gt: 0 } } };
+    inc["merchandiseVariants.$.stock"] = -1;
+  }
+  const r = await Event.updateOne(filter, { $inc: inc });
+  return r.modifiedCount === 1;
+};
+
+// Marks a ticket as attended. Only the request that changes attended from
+// false to true counts the person, so repeated or simultaneous scans of
+// one ticket add one to attendanceCount. Returns null if it was already
+// marked.
+const admit = async (registrationId, eventId, action, note) => {
+  const first = await Registration.findOneAndUpdate(
+    { _id: registrationId, attended: { $ne: true } },
+    {
+      $set: { attended: true, attendedAt: new Date() },
+      $push: { auditLog: { action, note: note || null } },
+    },
+    { new: true }
+  );
+  if (first) {
+    await Event.updateOne({ _id: eventId }, { $inc: { attendanceCount: 1 } });
+  }
+  return first;
+};
+
+const logScan = (registrationId, action, note) =>
+  Registration.updateOne({ _id: registrationId }, { $push: { auditLog: { action, note } } });
+
+// Gives back what reserveSlot took.
+const releaseSlot = async (eventId, type, variant) => {
+  if (type === "normal") {
+    await Event.updateOne({ _id: eventId, registeredCount: { $gt: 0 } }, { $inc: { registeredCount: -1 } });
+  } else if (variant) {
+    await Event.updateOne(
+      { _id: eventId, "merchandiseVariants.name": variant },
+      { $inc: { stockQuantity: 1, "merchandiseVariants.$.stock": 1 } }
+    );
+  } else {
+    await Event.updateOne({ _id: eventId }, { $inc: { stockQuantity: 1 } });
+  }
+};
+
 export const createEvent = async (req, res) => {
   try {
     const {
@@ -457,19 +519,11 @@ export const registerForEvent = async (req, res) => {
       }
     }
 
-    // Normal event: check registration cap
+    // Normal event: the seat itself is taken atomically further down
     if (event.type === "normal") {
-      if (event.registrationLimit) {
-        const count = await Registration.countDocuments({
-          event: event._id,
-          status: "registered",
-        });
-        if (count >= event.registrationLimit) {
-          return res.status(400).json({ message: "Event is fully booked." });
-        }
-      }
-
-      // Normal events: one registration per user, period
+      // Normal events: one registration per user. This check gives the
+      // usual answer; the unique index one_active_seat_per_user decides
+      // when two requests from the same user arrive together.
       const alreadyRegistered = await Registration.findOne({
         user: req.user.userId,
         event: event._id,
@@ -522,6 +576,7 @@ export const registerForEvent = async (req, res) => {
     const registrationPayload = {
       user: req.user.userId,
       event: event._id,
+      eventType: event.type,
       ticketId,
       status: "registered",
     };
@@ -558,18 +613,46 @@ export const registerForEvent = async (req, res) => {
       registrationPayload.formResponses = req.body.formResponses;
     }
 
-    const registration = await Registration.create(registrationPayload);
-
-    // Deduct stock permanently from the global and variant quantities
-    if (event.type === "merchandise") {
-      event.stockQuantity -= 1;
-      if (registrationPayload.merchandiseVariant && event.merchandiseVariants) {
-        const targetVariant = event.merchandiseVariants.find(v => v.name === registrationPayload.merchandiseVariant);
-        if (targetVariant) {
-          targetVariant.stock -= 1;
-        }
+    // Take the seat or the item. Stock for merchandise is held from the
+    // order until the payment is rejected or the order cancelled.
+    const variant = registrationPayload.merchandiseVariant;
+    if (!(await reserveSlot(event, variant))) {
+      if (event.type === "normal") {
+        return res.status(400).json({ message: "Event is fully booked." });
       }
-      await event.save();
+      return res.status(400).json({
+        message: variant ? `The variant "${variant}" is out of stock.` : "This item is out of stock.",
+      });
+    }
+
+    let registration;
+    try {
+      registration = await Registration.create(registrationPayload);
+    } catch (err) {
+      await releaseSlot(event._id, event.type, variant);
+      if (err.code === 11000) {
+        return res.status(400).json({ message: "You are already registered for this event." });
+      }
+      throw err;
+    }
+
+    // Purchase limit: count after inserting, so two orders from the same
+    // user that arrive together both see each other. Any order that finds
+    // the user over the limit removes itself.
+    if (event.type === "merchandise") {
+      const active = await Registration.countDocuments({
+        user: req.user.userId,
+        event: event._id,
+        status: "registered",
+        paymentStatus: { $in: ["pending", "approved"] },
+      });
+      if (active > event.purchaseLimitPerUser) {
+        await Registration.deleteOne({ _id: registration._id });
+        await releaseSlot(event._id, event.type, variant);
+        return res.status(400).json({
+          message: `Purchase limit of ${event.purchaseLimitPerUser} reached for this item.`,
+        });
+      }
     }
 
     // generate QR only for normal events or approved merchandise

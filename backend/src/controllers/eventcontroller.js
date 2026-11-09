@@ -407,17 +407,12 @@ export const markAttendance = async (req, res) => {
       return res.status(400).json({ message: "Cannot mark attendance for non-approved payment." });
     }
 
-    if (registration.attended) {
+    const marked = await admit(registration._id, event._id, "marked");
+    if (!marked) {
       return res.status(400).json({ message: "Attendance already recorded for this ticket." });
     }
 
-    registration.attended = true;
-    await registration.save();
-
-    event.attendanceCount = (event.attendanceCount || 0) + 1;
-    await event.save();
-
-    res.status(200).json({ message: "Attendance marked.", registration });
+    res.status(200).json({ message: "Attendance marked.", registration: marked });
   } catch (error) {
     res.status(500).json({ message: "Server error.", error: error.message });
   }
@@ -868,43 +863,44 @@ export const processQRScan = async (req, res) => {
       return res.status(404).json({ message: "Ticket not found." });
     }
 
+    // A cancelled registration keeps its QR code, so it must be refused here
+    if (registration.status !== "registered") {
+      await logScan(registration._id, "rejected_cancelled", "Cancelled registration");
+      return res.status(400).json({ message: "This ticket was cancelled." });
+    }
+
     // Check payment status for merchandise
     if (event.type === "merchandise" && registration.paymentStatus !== "approved") {
-      registration.auditLog.push({
-        action: "rejected_duplicate",
-        note: "Non-approved payment",
-      });
-      await registration.save();
+      await logScan(registration._id, "rejected_duplicate", "Non-approved payment");
       return res
         .status(400)
         .json({ message: "Cannot scan ticket with non-approved payment." });
     }
 
-    // If manual override, allow bypassing attended check
-    if (!manualOverride && registration.attended) {
-      registration.auditLog.push({
-        action: "rejected_duplicate",
-        note: "Already scanned",
+    const action = manualOverride ? "manual_override" : "scanned";
+    const first = await admit(registration._id, event._id, action, overrideNote);
+    if (first) {
+      return res.status(200).json({
+        message: "Attendance marked via QR scan.",
+        registration: first,
       });
-      await registration.save();
+    }
+
+    if (!manualOverride) {
+      await logScan(registration._id, "rejected_duplicate", "Already scanned");
       return res.status(400).json({ message: "Ticket already scanned." });
     }
 
-    // Mark as attended
-    registration.attended = true;
-    registration.attendedAt = new Date();
-    registration.auditLog.push({
-      action: manualOverride ? "manual_override" : "scanned",
-      note: overrideNote || null,
-    });
-    await registration.save();
-
-    event.attendanceCount = (event.attendanceCount || 0) + 1;
-    await event.save();
-
+    // Manual override on a ticket that was already scanned (re-entry):
+    // record it, but the person is already counted
+    const logged = await Registration.findOneAndUpdate(
+      { _id: registration._id },
+      { $push: { auditLog: { action, note: overrideNote || null } } },
+      { new: true }
+    );
     res.status(200).json({
       message: "Attendance marked via QR scan.",
-      registration,
+      registration: logged,
     });
   } catch (error) {
     res.status(500).json({ message: "Server error.", error: error.message });

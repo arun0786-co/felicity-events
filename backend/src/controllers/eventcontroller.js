@@ -695,34 +695,28 @@ export const getMyRegistrations = async (req, res) => {
 // Protected: verifyToken, authorizeRoles("participant")
 export const cancelRegistration = async (req, res) => {
   try {
-    const registration = await Registration.findOne({
-      user: req.user.userId,
-      event: req.params.eventId,
-      status: "registered",
-    });
+    // Flip the status in one step and get the old document back: of
+    // several identical cancels only one finds it still "registered", so
+    // the seat or item is returned once.
+    const registration = await Registration.findOneAndUpdate(
+      { user: req.user.userId, event: req.params.eventId, status: "registered" },
+      { $set: { status: "cancelled" } },
+      { new: false }
+    );
 
     if (!registration) {
       return res.status(404).json({ message: "Active registration not found." });
     }
 
-    registration.status = "cancelled";
-    await registration.save();
-
-    //stock restore 
     const event = await Event.findById(req.params.eventId);
-    if (
+    if (event && event.type === "normal") {
+      await releaseSlot(event._id, "normal");
+    } else if (
       event &&
       event.type === "merchandise" &&
       (registration.paymentStatus === "approved" || registration.paymentStatus === "pending")
     ) {
-      event.stockQuantity += 1;
-      if (registration.merchandiseVariant && event.merchandiseVariants) {
-        const targetVariant = event.merchandiseVariants.find(v => v.name === registration.merchandiseVariant);
-        if (targetVariant) {
-          targetVariant.stock += 1;
-        }
-      }
-      await event.save();
+      await releaseSlot(event._id, "merchandise", registration.merchandiseVariant);
     }
 
     res.status(200).json({ message: "Registration cancelled successfully." });

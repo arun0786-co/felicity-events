@@ -5,7 +5,10 @@
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
-    "test": "node --test --test-concurrency=1 'test/*.test.js'"
+    "test": "node --test --test-concurrency=1 'test/*.test.js'",
+    "demo": "node scripts/demo.js",
+    "seed": "node -e \"import('dotenv/config').then(async()=>{const m=(await import('mongoose')).default;await m.connect(process.env.MONGODB_URI);await (await import('./scripts/seed.js')).seed();await m.disconnect()})\"",
+    "backfill": "node scripts/backfill.js"
   },
   "type": "module",
   "keywords": [],

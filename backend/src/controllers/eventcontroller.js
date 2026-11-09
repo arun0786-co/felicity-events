@@ -678,7 +678,7 @@ export const getMyRegistrations = async (req, res) => {
   try {
     const registrations = await Registration.find({
       user: req.user.userId,
-    }).populate("event", "name description startDate endDate status type");
+    }).populate("event", "name description startDate endDate registrationDeadline status type");
 
     res.status(200).json({ registrations });
   } catch (error) {

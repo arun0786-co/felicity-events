@@ -21,7 +21,7 @@ const DiscussionForum = ({ eventId }) => {
         try {
             const { data } = await api.get(`/forum/${eventId}/messages`);
             setMessages(data.messages || []);
-        } catch (err) {
+        } catch {
             console.error('Failed to load forum messages');
         } finally {
             setLoading(false);
@@ -58,7 +58,7 @@ const DiscussionForum = ({ eventId }) => {
         try {
             await api.delete(`/forum/${eventId}/messages/${msgId}`);
             fetchMessages();
-        } catch (err) {
+        } catch {
             toast.error('Failed to delete message');
         }
     };
@@ -67,7 +67,7 @@ const DiscussionForum = ({ eventId }) => {
         try {
             await api.patch(`/forum/${eventId}/messages/${msgId}/pin`, { isPinned: !currentPinStatus });
             fetchMessages();
-        } catch (err) {
+        } catch {
             toast.error('Failed to pin message');
         }
     };

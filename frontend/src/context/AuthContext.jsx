@@ -8,6 +8,11 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
+    const logout = () => {
+        localStorage.removeItem('token');
+        setUser(null);
+    };
+
     // Re-hydrate user from token on load
     useEffect(() => {
         const initAuth = async () => {
@@ -37,11 +42,6 @@ export const AuthProvider = ({ children }) => {
     const login = (token, userData, role) => {
         localStorage.setItem('token', token);
         setUser({ ...userData, role });
-    };
-
-    const logout = () => {
-        localStorage.removeItem('token');
-        setUser(null);
     };
 
     return (

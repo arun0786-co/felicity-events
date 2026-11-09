@@ -23,7 +23,7 @@ const ClubsOrganizersPage = () => {
                     const meRes = await api.get('/users/me');
                     setFollowing(meRes.data.user.followedOrganizers || []);
                 }
-            } catch (error) {
+            } catch {
                 toast.error('Failed to load organizers list');
             } finally {
                 setLoading(false);
@@ -47,7 +47,7 @@ const ClubsOrganizersPage = () => {
             setFollowing(updatedFollowing);
 
             toast.success(updatedFollowing.includes(orgId) ? 'Followed Club!' : 'Unfollowed Club.');
-        } catch (error) {
+        } catch {
             toast.error('Failed to update follow preferences.');
         }
     };

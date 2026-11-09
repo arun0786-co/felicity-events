@@ -16,7 +16,7 @@ const OrganizerDashboard = () => {
         try {
             const { data } = await api.get('/events/my-events');
             setEvents(data.events || []);
-        } catch (err) {
+        } catch {
             toast.error('Failed to fetch events');
         } finally {
             setLoading(false);

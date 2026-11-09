@@ -17,7 +17,7 @@ const AdminPasswordResetsPage = () => {
         try {
             const { data } = await api.get('/admin/password-reset/requests');
             setRequests(data.requests);
-        } catch (error) {
+        } catch {
             toast.error('Failed to load password reset requests.');
         } finally {
             setLoading(false);

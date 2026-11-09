@@ -62,7 +62,7 @@ const EditEventPage = () => {
                 if (ev.type === 'merchandise' && ev.merchandiseVariants && ev.merchandiseVariants.length > 0) {
                     setVariants(ev.merchandiseVariants);
                 }
-            } catch (err) {
+            } catch {
                 toast.error('Failed to load event details');
                 navigate('/dashboard');
             } finally {

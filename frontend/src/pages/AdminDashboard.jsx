@@ -26,7 +26,7 @@ const AdminDashboard = () => {
         try {
             const { data } = await api.get('/admin/organizers');
             setOrganizers(data.organizers);
-        } catch (error) {
+        } catch {
             toast.error('Failed to load organizers');
         } finally {
             setLoading(false);

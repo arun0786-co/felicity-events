@@ -21,7 +21,7 @@ const ManageRegistrationsPage = () => {
             ]);
             setEventData(eventRes.event);
             setRegistrations(regRes.registrations || []);
-        } catch (err) {
+        } catch {
             toast.error('Failed to load data.');
         } finally {
             setLoading(false);

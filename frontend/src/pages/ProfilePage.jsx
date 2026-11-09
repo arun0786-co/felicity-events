@@ -39,7 +39,7 @@ const ProfilePage = () => {
                 description: u.description || '',
                 discordWebhook: u.discordWebhook || ''
             });
-        } catch (error) {
+        } catch {
             toast.error('Failed to load profile data.');
         } finally {
             setLoading(false);

@@ -24,6 +24,8 @@ export default defineConfig([
     },
     rules: {
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      // the auth context file exports its provider and the useAuth hook
+      'react-refresh/only-export-components': ['error', { allowExportNames: ['useAuth'] }],
     },
   },
 ])

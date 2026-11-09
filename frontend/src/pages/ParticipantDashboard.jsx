@@ -17,7 +17,7 @@ const ParticipantDashboard = () => {
         try {
             const { data } = await api.get('/events/my-registrations');
             setRegistrations(data.registrations || []);
-        } catch (err) {
+        } catch {
             toast.error('Failed to load registrations');
         } finally {
             setLoading(false);

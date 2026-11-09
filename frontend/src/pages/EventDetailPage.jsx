@@ -27,7 +27,7 @@ const EventDetailPage = () => {
     try {
       const { data } = await api.get(`/events/${eventId}`);
       setEvent(data.event);
-    } catch (err) {
+    } catch {
       toast.error('Failed to load event details');
     } finally {
       setLoading(false);

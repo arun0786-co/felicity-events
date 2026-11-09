@@ -38,7 +38,7 @@ const OrganizerDetailPage = () => {
                     const meRes = await api.get('/users/me');
                     setFollowing(meRes.data.user.followedOrganizers || []);
                 }
-            } catch (error) {
+            } catch {
                 toast.error('Failed to load organizer details');
             } finally {
                 setLoading(false);
@@ -58,7 +58,7 @@ const OrganizerDetailPage = () => {
             await api.patch('/users/preferences', { followedOrganizers: updatedFollowing });
             setFollowing(updatedFollowing);
             toast.success(updatedFollowing.includes(orgId) ? `Followed ${organizer.firstName}` : `Unfollowed ${organizer.firstName}`);
-        } catch (error) {
+        } catch {
             toast.error('Failed to update follow preferences.');
         }
     };

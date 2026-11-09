@@ -26,7 +26,7 @@ const QRScannerPage = () => {
         try {
             const { data } = await api.get(`/events/${eventId}/attendance-dashboard`);
             setDashboard(data);
-        } catch (err) {
+        } catch {
             toast.error('Failed to load dashboard.');
         } finally {
             setLoading(false);
@@ -64,7 +64,7 @@ const QRScannerPage = () => {
             document.body.appendChild(link);
             link.click();
             link.parentNode.removeChild(link);
-        } catch (err) {
+        } catch {
             toast.error('Export failed');
         }
     };
@@ -90,7 +90,9 @@ const QRScannerPage = () => {
                     try {
                         const parsed = JSON.parse(extCode);
                         if (parsed.ticketId) extCode = parsed.ticketId;
-                    } catch (err) { }
+                    } catch {
+                        // not JSON: the code is the ticket id itself
+                    }
 
                     setCodeInput(extCode);
                     toast.success("QR Code Decoded! Ready to process.");

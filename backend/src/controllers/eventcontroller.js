@@ -760,68 +760,61 @@ export const approveRejectPayment = async (req, res) => {
       return res.status(400).json({ message: `Cannot change payment status from "${registration.paymentStatus}".` });
     }
 
-    // If rejecting, release slot and increase stock
-    if (status === "rejected") {
-      registration.paymentStatus = status;
-      await registration.save();
+    // Only a pending order of an active registration can move, and only
+    // once: the update matches on both, so a repeated or concurrent click
+    // finds nothing to change.
+    const pendingFilter = { _id: registration._id, status: "registered", paymentStatus: "pending" };
 
-      event.stockQuantity += 1;
-      if (registration.merchandiseVariant && event.merchandiseVariants) {
-        const targetVariant = event.merchandiseVariants.find(v => v.name === registration.merchandiseVariant);
-        if (targetVariant) {
-          targetVariant.stock += 1;
-        }
+    // If rejecting, release the item back to stock
+    if (status === "rejected") {
+      const rejected = await Registration.findOneAndUpdate(
+        pendingFilter,
+        { $set: { paymentStatus: "rejected" } },
+        { new: true }
+      );
+      if (!rejected) {
+        return res.status(400).json({ message: "This order is no longer pending." });
       }
-      await event.save();
+      await releaseSlot(event._id, "merchandise", rejected.merchandiseVariant);
 
       return res.status(200).json({
         message: "Payment rejected.",
-        registration,
+        registration: rejected,
       });
     }
 
-    // If approving, generate QR, decrement stock, and send email
-    if (status === "approved") {
-      if (event.stockQuantity <= 0) {
-        return res.status(400).json({ message: "Insufficient stock to approve payment." });
-      }
-
-      // Generate QR code for approved transaction
-      try {
-        const qrPayload = JSON.stringify({
-          ticketId: registration.ticketId,
-          eventId: event._id,
-          userId: registration.user,
-        });
-        const qrDataUrl = await QRCode.toDataURL(qrPayload);
-        registration.qrCode = qrDataUrl;
-      } catch (qrErr) {
-        console.error("QR generation failed:", qrErr.message);
-      }
-
-      // Stock was already decremented during registration. We just issue QR.
-
-      // Mark as approved
-      registration.paymentStatus = status;
-      await registration.save();
-
-      // Send confirmation email (can be implemented with nodemailer)
-      const user = await registration.populate("user", "email firstName");
-      sendConfirmationEmail(user.user.email, user.user.firstName, event.name, registration.ticketId)
-        .catch((err) => console.error("Email send failed:", err.message));
-
-      return res.status(200).json({
-        message: "Payment approved. QR generated and confirmation email sent.",
-        registration,
+    // If approving, generate QR and send email. The item was already
+    // taken from stock when the order was placed.
+    // Generate QR code for approved transaction
+    let qrCode;
+    try {
+      const qrPayload = JSON.stringify({
+        ticketId: registration.ticketId,
+        eventId: event._id,
+        userId: registration.user,
       });
+      qrCode = await QRCode.toDataURL(qrPayload);
+    } catch (qrErr) {
+      console.error("QR generation failed:", qrErr.message);
     }
 
-    registration.paymentStatus = status;
-    await registration.save();
+    const approved = await Registration.findOneAndUpdate(
+      pendingFilter,
+      { $set: { paymentStatus: "approved", ...(qrCode ? { qrCode } : {}) } },
+      { new: true }
+    );
+    if (!approved) {
+      return res.status(400).json({ message: "This order is no longer pending." });
+    }
 
-    res.status(200).json({
-      message: `Payment ${status}.`,
-      registration,
+    // Send confirmation email (can be implemented with nodemailer)
+    const user = await approved.populate("user", "email firstName");
+    sendConfirmationEmail(user.user.email, user.user.firstName, event.name, approved.ticketId)
+      .catch((err) => console.error("Email send failed:", err.message));
+
+    return res.status(200).json({
+      message: "Payment approved. QR generated and confirmation email sent.",
+      registration: approved,
     });
   } catch (error) {
     res.status(500).json({ message: "Server error.", error: error.message });

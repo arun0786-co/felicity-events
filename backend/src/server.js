@@ -1,21 +1,10 @@
-import express from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
-import { connectdb } from './config/db.js';
-import authroutes from "./routes/authroutes.js";
-import adminroutes from "./routes/adminroutes.js";
-import eventroutes from "./routes/eventroutes.js";
-import userroutes from "./routes/userroutes.js";
-import passwordresetroutes from "./routes/passwordresetroutes.js";
-import feedbackroutes from "./routes/feedbackroutes.js";
-import forumroutes from "./routes/forumroutes.js";
-import User from "./models/user.js";
+import dotenv from "dotenv";
 import bcrypt from "bcrypt";
-
+import { connectdb } from "./config/db.js";
+import { createApp } from "./app.js";
+import User from "./models/user.js";
 
 dotenv.config();
-
-const app = express();
 
 const requiredEnv = ["MONGODB_URI", "JWT_SECRET"];
 for (const key of requiredEnv) {
@@ -25,12 +14,8 @@ for (const key of requiredEnv) {
     }
 }
 
-// Middleware
-app.use(cors());
-app.use(express.json());
-
-// Connect to database
 await connectdb();
+
 // Ensure admin exists (seed from env) — useful for demos
 const ensureAdmin = async () => {
     try {
@@ -58,16 +43,8 @@ const ensureAdmin = async () => {
     }
 };
 await ensureAdmin();
-// routes
-app.use("/api/auth", authroutes);
-app.use("/api/admin", adminroutes);
-app.use("/api/events", eventroutes);
-app.use("/api/users", userroutes);
-app.use("/api/password-reset", passwordresetroutes);
-app.use("/api/feedback", feedbackroutes);
-app.use("/api/forum", forumroutes);
 
-
+const app = createApp();
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {

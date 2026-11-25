@@ -73,6 +73,14 @@ Authentication uses JWT, with roles checked on every route. Passwords are hashed
 | ![landing](docs/img/landing.png) | ![merch](docs/img/merch.png) |
 | **approve payments** | **scan tickets** |
 | ![manage](docs/img/manage.png) | ![scanner](docs/img/scanner.png) |
+| **event page and forum** | **organizer dashboard** |
+| ![event page](docs/img/event.png) | ![organizer dashboard](docs/img/organizer.png) |
+
+The admin creates organizer accounts and can disable them:
+
+![admin dashboard](docs/img/admin.png)
+
+The last three were taken from the demo with `frontend/scripts/screenshots.mjs` (Playwright, 1440 x 900), with the demo api and dev server running.
 
 ## Run it
 
